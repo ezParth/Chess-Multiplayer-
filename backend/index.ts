@@ -1,35 +1,26 @@
-import express from "express";
-import cors from "cors";
+import dotenv from "dotenv";
 import mongoose from "mongoose";
 
-const app = express();
+import app from "./app.ts";
 
-app.use(express.json());
-
-app.use(
-  cors({
-    origin: "http://localhost:5173",
-    credentials: true,
-  })
-);
+dotenv.config();
 
 mongoose
   .connect(
     "mongodb://127.0.0.1:27017/chesss"
   )
   .then(() => {
-    console.log("MongoDB Connected");
+    console.log(
+      "MongoDB Connected"
+    );
+
+    app.listen(
+      process.env.PORT || 3000,
+      () => {
+        console.log(
+          "Server Running"
+        );
+      }
+    );
   })
-  .catch((err) => {
-    console.log("MongoDB Error:", err);
-  });
-
-// Routes
-app.get("/", (req, res) => {
-  res.send("Server is running");
-});
-
-// Start Server
-app.listen(3000, () => {
-  console.log("Server is running on port 3000");
-});
+  .catch(console.error);
