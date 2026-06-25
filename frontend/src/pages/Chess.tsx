@@ -45,16 +45,17 @@ export default function ChessGame() {
 
   const onDrop = ({ sourceSquare, targetSquare }: PieceDropHandlerArgs) => {
     if (!targetSquare) return false;
-
+    
     const gameCopy = new Chess(game.fen());
-
+    
     const move = gameCopy.move({
       from: sourceSquare,
       to: targetSquare,
       promotion: "q",
     });
-
+    
     if (!move) return false;
+    if (playerPlayingColor != (move.color as string)) return
 
     if (move.captured) {
       if (move.color === "w") {
@@ -136,10 +137,15 @@ export default function ChessGame() {
     };
 
     if (socket != null) socket.on("waiting", handleWaiting)
-    if (socket != null) socket.on("game-start", (roomId, opponent, me) => {
+    if (socket != null) socket.on("game-start", (roomId, whiteCol, blackCol) => {
       localStorage.setItem("roomId", roomId)
       setRoomId(roomId)
-      console.log(opponent, me, roomId)
+      console.log(whiteCol, blackCol)
+      if(socket.id == whiteCol) {
+        setPlayerPlayingColor("white")
+      } else {
+        setPlayerPlayingColor("black")
+      }
     })
     if(socket != null) socket.on("opponent-move", (move) => {
       setGame(move)

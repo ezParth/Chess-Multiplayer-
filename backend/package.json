@@ -20,6 +20,8 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/typescript": "^0.4.29",
     "bcrypt": "^6.0.0",
+    "chess": "^1.5.1",
+    "chess.js": "^1.4.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "express": "^5.2.1",
