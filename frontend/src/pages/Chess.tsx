@@ -28,7 +28,7 @@ const pieceIconsWhite: Record<string, string> = {
 }
 
 
-export default function ChessGame() {
+export default function ChessGam() {
   const [game, setGame] = useState(() => new Chess());
   const [capturedWhite, setCapturedWhite] = useState<string[]>([]);
   const [playerPlayingColor, setPlayerPlayingColor] =

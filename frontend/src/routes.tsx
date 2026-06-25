@@ -7,7 +7,7 @@ import {
   import Login from "./pages/Login";
   import Signup from "./pages/Signup";
   import NotFound from "./pages/NotFound";
-  import ChessGame from "./pages/Chess";
+  import ChessGame from "./pages/ChessGame";
   
   export const router = createBrowserRouter([
     {
@@ -33,7 +33,7 @@ import {
         {
             path: "chess",
             element: <ChessGame />
-          }
+        },
       ],
     },
   ]);
