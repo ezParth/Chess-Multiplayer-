@@ -1,75 +1,209 @@
 import { Server } from "socket.io";
 import { Chess } from "chess.js";
+import { saveFinishedGame, startGame, type result } from "../controller/chessMatch.controller.ts";
+
+interface Player {
+  id: string;
+  username: string;
+}
 
 interface Room {
   game: Chess;
-  players: { white: string; black: string };
+  players: {
+    white: Player;
+    black: Player;
+  };
 }
 
 const rooms = new Map<string, Room>();
-let waitingPlayer: string | null = null;
+let waitingPlayer: Player | null = null;
 
 export const setupSocket = (server: any) => {
   const io = new Server(server, {
-    cors: { origin: "http://localhost:5173", credentials: true },
+    cors: { 
+      origin: "http://localhost:5173", 
+      credentials: true 
+    },
   });
 
   io.on("connection", (socket) => {
     console.log("Connected:", socket.id);
 
-    if (!waitingPlayer) {
-      waitingPlayer = socket.id;
-      socket.emit("waiting");
-    } else {
-      const roomId = `room-${Date.now()}`;
-      const game = new Chess();
+    socket.on("set-username", async (username: string) => {
+      const player: Player = {
+        id: socket.id,
+        username: username.trim() || `Player_${socket.id.slice(0, 6)}`,
+      };
 
-      rooms.set(roomId, {
-        game,
-        players: { white: waitingPlayer, black: socket.id },
-      });
+      if (!waitingPlayer) {
+        waitingPlayer = player;
+        socket.emit("waiting", { username: player.username });
+      } else {
+        const roomId = `room-${Date.now()}`;
+        const game = new Chess();
 
-      socket.join(roomId);
-      io.sockets.sockets.get(waitingPlayer)?.join(roomId);
+        const room: Room = {
+          game,
+          players: {
+            white: waitingPlayer,
+            black: player,
+          },
+        };
 
-      io.to(roomId).emit("game-start", {
-        roomId,
-        white: waitingPlayer,
-        black: socket.id,
-      });
+        rooms.set(roomId, room);
 
-      waitingPlayer = null;
-    }
+        socket.join(roomId);
+        io.sockets.sockets.get(waitingPlayer.id)?.join(roomId);
 
-    // Move handler
-    socket.on("move", ({ roomId, fen }: { roomId: string; fen: string }) => {
-      const room = rooms.get(roomId);
-      if (!room) return;
+        try {
+          const gameStarted = await startGame(
+            waitingPlayer.username, 
+            player.username, 
+            roomId
+          );
 
-      const { game, players } = room;
+          if (!gameStarted) {
+            console.error("Failed to start game in database");
+            socket.emit("game-error", "Failed to create game record");
+            rooms.delete(roomId);
+            return;
+          }
 
-      // Validate it's the opponent's move
-      if (game.turn() === "w" && socket.id !== players.white) return;
-      if (game.turn() === "b" && socket.id !== players.black) return;
+          io.to(roomId).emit("game-start", {
+            roomId,
+            white: waitingPlayer,
+            black: player,
+          });
 
-      try {
-        game.load(fen); // Update server game state
-        socket.to(roomId).emit("opponent-move", fen);
-      } catch (e) {
-        console.error("Invalid move");
+        } catch (error) {
+          console.error("Error starting game:", error);
+          socket.emit("game-error", "Internal server error while starting game");
+          rooms.delete(roomId);
+        }
+
+        waitingPlayer = null;
       }
     });
 
-    socket.on("disconnect", () => {
-      // Cleanup rooms where this player was
-      for (const [roomId, room] of rooms) {
-        if (room.players.white === socket.id || room.players.black === socket.id) {
-          socket.to(roomId).emit("opponent-disconnected");
+    // Move handler
+// Move handler with Game Over detection
+socket.on("move", async ({ roomId, fen }: { roomId: string; fen: string }) => {
+  const room = rooms.get(roomId);
+  if (!room) return;
+
+  const { game, players } = room;
+
+  // Validate turn
+  const isWhiteTurn = game.turn() === "w";
+  const isPlayerWhite = socket.id === players.white.id;
+
+  if ((isWhiteTurn && !isPlayerWhite) || (!isWhiteTurn && isPlayerWhite)) {
+    return; // Not your turn
+  }
+
+  try {
+    game.load(fen);                    // Update server game state
+
+    // === Game Over Detection ===
+    if (game.isGameOver()) {
+      let result: result = "draw";
+      let reason: any = "draw";
+
+      if (game.isCheckmate()) {
+        // The player whose turn it is now LOST
+        const loser = game.turn(); // 'w' or 'b'
+        result = loser === "w" ? "black" : "white";
+        reason = "checkmate";
+      } 
+      else if (game.isDraw()) {
+        result = "draw";
+        if (game.isStalemate()) reason = "stalemate";
+        else if (game.isInsufficientMaterial()) reason = "insufficient";
+        else reason = "draw";
+      }
+
+      const finalFen = game.fen();
+
+      // Save game result to database
+      await saveFinishedGame(result, reason, finalFen, roomId);
+
+      // Notify both players
+      io.to(roomId).emit("game-over", {
+        result,
+        reason,
+        finalFen,
+        winner: result === "draw" ? null : result,
+      });
+
+      console.log(`Game ${roomId} ended: ${reason} → ${result}`);
+    } 
+    else {
+      // Normal move - just forward to opponent
+      socket.to(roomId).emit("opponent-move", fen);
+    }
+  } catch (e) {
+    console.error("Invalid FEN received:", e);
+  }
+});
+
+    // Resign handler
+    socket.on("resign", async (roomId: string) => {
+      if (!roomId) return;
+
+      const room = rooms.get(roomId);
+      if (!room) return;
+
+      try {
+        const isWhiteResigning = socket.id === room.players.white.id;
+        const winner: result = isWhiteResigning ? "black" : "white"; // Opponent wins
+
+        const finalFen = room.game.fen();
+
+        // Save game result before notifying
+        await saveFinishedGame(winner, "resign", finalFen, roomId);
+
+        // Notify opponent
+        socket.to(roomId).emit("opponent-resigned");
+      } catch (error) {
+        console.error("Error saving resigned game:", error);
+      }
+    });
+
+    // Disconnect handler
+    socket.on("disconnect", async () => {
+      for (const [roomId, room] of rooms.entries()) {
+        if (room.players.white.id === socket.id || room.players.black.id === socket.id) {
+          try {
+            const isWhiteLeaving = socket.id === room.players.white.id;
+            const winner: result = isWhiteLeaving ? "black" : "white";
+
+            const finalFen = room.game.fen();
+
+            // Save result before deleting room
+            const isGameOver = room.game.isGameOver();
+
+            if (isGameOver) {
+              console.log(`Game ${roomId} already finished. No need to save as abandoned.`);
+            } else {
+              await saveFinishedGame(winner, "abandoned", finalFen, roomId);
+            }
+
+            // Notify opponent
+            socket.to(roomId).emit("opponent-disconnected");
+          } catch (error) {
+            console.error("Error saving abandoned game:", error);
+          }
+
+          // Delete room after saving
           rooms.delete(roomId);
         }
       }
 
-      if (waitingPlayer === socket.id) waitingPlayer = null;
+      if (waitingPlayer?.id === socket.id) {
+        waitingPlayer = null;
+      }
+
+      console.log("Disconnected:", socket.id);
     });
   });
 };

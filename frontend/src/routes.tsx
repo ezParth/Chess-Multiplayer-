@@ -31,8 +31,8 @@ import {
           element: <NotFound />,
         },
         {
-            path: "chess",
-            element: <ChessGame />
+          path: "chess/:roomId?",
+          element: <ChessGame />,
         },
       ],
     },
