@@ -4,6 +4,7 @@ import {
     saveGame,
     // finishGameApi,
     getAllSavedGames,
+    getAllPlayers,
 } from "../controller/chessMatch.controller.ts";
 
 import { protect as verifyJwt } from "../middleware/auth.middleware.ts";
@@ -17,5 +18,7 @@ router.post("/save", verifyJwt, saveGame);
 // router.post("/finish", verifyJwt, finishGameApi);
 
 router.get("/saved", verifyJwt, getAllSavedGames);
+
+router.get("/allPlayers", verifyJwt, getAllPlayers)
 
 export default router;

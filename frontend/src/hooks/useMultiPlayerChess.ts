@@ -259,7 +259,7 @@ const SaveGameForLater = async () => {
   }
 
   console.log("Requesting to save game:", currentRoomId);
-  resetGame()
+  // resetGame()
   socketRef.current.emit("save-game-for-later", currentRoomId);
 };
 

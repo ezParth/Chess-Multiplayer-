@@ -6,6 +6,25 @@ import type { Request, Response } from "express";
 export type result = "white" | "black" | "draw" | "pending" | "started";
 export type reason = "abandoned" | "resign" | "checkmate";
 
+export const getAllPlayers = async (req: Request, res: Response) => {
+  try {
+    const players = await User.find({})
+
+    const newPlayers = players.map((player) => ({
+      username: player.username,
+      userId: player._id
+  }))
+    return res.status(200).json({
+      message: "FETCHED PLAYERS SUCCESSFULLY",
+      success: true,
+      players: newPlayers
+    })
+  } catch (error) {
+    console.log("ERROR IN GET ALL PLAYERS- ", error)
+    return returnInternalServerError(res, error)
+  }
+}
+
 export const startGame = async (
   white: string,
   black: string,

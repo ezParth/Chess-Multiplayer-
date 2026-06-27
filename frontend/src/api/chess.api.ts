@@ -63,3 +63,9 @@ export const getSavedGames =
 
     return response.data;
   };
+
+export const getAllPlayers = async () => {
+  const res = await gameApi.get("/allPlayers")
+
+  return res.data
+}
