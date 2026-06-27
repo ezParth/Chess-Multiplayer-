@@ -3,7 +3,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Chess } from "chess.js";
 import { Socket, io } from "socket.io-client";
 import type { PieceDropHandlerArgs } from "react-chessboard";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { saveGame } from "../api/chess.api";
 
 interface UseChessReturn {
   game: Chess;
@@ -25,6 +26,8 @@ interface UseChessReturn {
   // setCheckMate: (arg: boolean) => void;
   setWinner: (arg: string) => void;
   reason: string
+  SaveGameForLater: () => void;
+goHome: () => void; 
 }
 
 export const useMultiplayerChess = (): UseChessReturn => {
@@ -41,10 +44,21 @@ export const useMultiplayerChess = (): UseChessReturn => {
   const [winner, setWinner] = useState("")
   const [reason, setReason] = useState("")
 
+  const { roomId: paramRoomId } = useParams();   // Better naming
+
+  const roomIdRef = useRef<string | null>(null);
+
+
+  useEffect(() => {
+    roomIdRef.current = roomId || paramRoomId || null;
+  }, [roomId, paramRoomId]);
+
   const socketRef = useRef<Socket | null>(null);
   const gameRef = useRef(game);
 
   const nav = useNavigate();
+
+
 
   // Keep gameRef updated
   useEffect(() => {
@@ -106,6 +120,7 @@ export const useMultiplayerChess = (): UseChessReturn => {
     socket.on("opponent-disconnected", () => {
       alert("Opponent disconnected");
       resetGame();
+      nav("/chess")
     });
 
     socket.on("game-over", ({ result, reason, finalFen, winner }) => {
@@ -120,9 +135,50 @@ export const useMultiplayerChess = (): UseChessReturn => {
 
       setWinner(result)
       setReason(reason)
+      resetGame()
+      nav("/chess")
     
       // Optional: reset after some time or let user click "New Game"
     });
+
+    socket.on("save-game-for-later-accepted", async (fen) => {
+      const currentRoomId = roomId || roomIdRef.current || paramRoomId;
+    
+      console.log("Current Room ID in save listener:", currentRoomId); // ← For debugging
+    
+      if (!currentRoomId) {
+        console.error("Cannot save game: roomId is missing");
+        alert("Cannot save game - Room ID not found. Please try again.");
+        return;
+      }
+    
+      try {
+        console.log("Saving game with roomId:", currentRoomId);
+        
+        const response = await saveGame({
+          roomId: currentRoomId,
+          fen: fen ?? game.fen(),
+        });
+    
+        if (response?.success) {
+          socket.emit("game-saved-successfully");
+          alert("Game Saved Successfully!");
+          nav("/chess")
+          resetGame()
+        } else {
+          alert("Failed to save game");
+        }
+      } catch (error) {
+        console.error("Save game error:", error);
+        alert("Error while saving the game");
+      }
+    });
+
+    socket.on("game-saved", () => {
+      alert("GAME SAVED SUCCESSFULLY")
+      resetGame()
+      nav("/chess")
+    })
 
     return () => {
       socket.removeAllListeners();
@@ -155,11 +211,12 @@ export const useMultiplayerChess = (): UseChessReturn => {
 
       socketRef.current.emit("move", { roomId, fen: gameCopy.fen() });
 
-
       return true;
     },
     [roomId, playerColor, game]
   );
+
+
 
   const resetGame = useCallback(() => {
     const newGame = new Chess();
@@ -188,16 +245,39 @@ export const useMultiplayerChess = (): UseChessReturn => {
     resetGame();
   }, [roomId, resetGame]);
 
+const SaveGameForLater = async () => {
+  const currentRoomId = roomId || roomIds;
+
+  if (!currentRoomId) {
+    alert("Cannot save: Room ID not found");
+    return;
+  }
+
+  if (!socketRef.current?.connected) {
+    alert("Not connected to server");
+    return;
+  }
+
+  console.log("Requesting to save game:", currentRoomId);
+  resetGame()
+  socketRef.current.emit("save-game-for-later", currentRoomId);
+};
+
   const flipBoard = useCallback(() => {
     setPlayerColor((prev) => (prev === "white" ? "black" : "white"));
   }, []);
 
-  // Cleanup on unmount
+  const goHome = () => {
+    resetGame()
+    nav("/")
+  }
+
   useEffect(() => {
     return () => {
       if (socketRef.current) {
         socketRef.current.removeAllListeners();
         socketRef.current.disconnect();
+        nav("/chess")
       }
     };
   }, []);
@@ -221,6 +301,8 @@ export const useMultiplayerChess = (): UseChessReturn => {
     winner,
     // setCheckMate,
     setWinner,
-    reason
+    reason,
+    SaveGameForLater,
+    goHome
   };
 };

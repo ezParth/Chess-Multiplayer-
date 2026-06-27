@@ -8,6 +8,7 @@ dotenv.config();
 
 const server = http.createServer(app);
 setupSocket(server);
+const port =  process.env.PORT || 3000
 
 mongoose
   .connect(
@@ -19,10 +20,10 @@ mongoose
     );
 
     server.listen(
-      process.env.PORT || 3000,
+     port,
       () => {
         console.log(
-          "Server Running"
+          `Server bounded on port ${port}`
         );
       }
     );

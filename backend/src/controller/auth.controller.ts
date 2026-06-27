@@ -2,13 +2,14 @@ import type { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { User } from "../models/user.model.ts";
+const JWT_SECRET = "helloworld"
 
 const generateToken = (
   userId: string
 ): string => {
   return jwt.sign(
     { userId },
-    process.env.JWT_SECRET as string,
+    JWT_SECRET,
     {
       expiresIn: "7d",
     }
@@ -18,9 +19,12 @@ const generateToken = (
 export const signup = async (
   req: Request,
   res: Response
-): Promise<void> => {
+) => {
   try {
     const { username, password } = req.body;
+    console.log("Body:", req.body);
+console.log("Username:", req.body.username);
+console.log("Password:", req.body.password);
 
     if (!username || !password) {
       res.status(400).json({
@@ -33,10 +37,12 @@ export const signup = async (
       await User.findOne({ username });
 
     if (existingUser) {
-      res.status(400).json({
+      console.log("ISSUE IN EXISTING USER")
+      return res.status(400).json({
         message: "Username already exists",
+        success: false
       });
-      return;
+
     }
 
     const hashedPassword =
@@ -59,14 +65,16 @@ export const signup = async (
         7 * 24 * 60 * 60 * 1000,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Signup successful",
       user: {
         id: user._id,
         username: user.username,
       },
+      token: token
     });
   } catch (error) {
+    console.log("Error in signup: ",error)
     res.status(500).json(error);
   }
 };
@@ -74,19 +82,20 @@ export const signup = async (
 export const login = async (
   req: Request,
   res: Response
-): Promise<void> => {
+) => {
   try {
     const { username, password } = req.body;
+
 
     const user = await User.findOne({
       username,
     });
 
     if (!user) {
-      res.status(400).json({
+      return res.status(400).json({
         message: "Invalid credentials",
       });
-      return;
+      // return;
     }
 
     const isMatch =
@@ -120,8 +129,10 @@ export const login = async (
         id: user._id,
         username: user.username,
       },
+      token: token
     });
   } catch (error) {
+    console.log("Error in login ",error)
     res.status(500).json(error);
   }
 };

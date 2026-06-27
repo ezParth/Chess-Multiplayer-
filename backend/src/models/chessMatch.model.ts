@@ -4,10 +4,13 @@ export interface IChessMatch extends Document {
   white: mongoose.Types.ObjectId;
   black: mongoose.Types.ObjectId;
 //   winner?: mongoose.Types.ObjectId;
-  result: "white" | "black" | "draw" | "pending";
+  result: "white" | "black" | "draw" | "pending" | "started";
   reason: "abandoned" | "resign" | "checkmate"
   finalFen: string;
   roomId: string
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const chessMatchSchema = new Schema<IChessMatch>(
@@ -32,7 +35,7 @@ const chessMatchSchema = new Schema<IChessMatch>(
   
       result: {
         type: String,
-        enum: ["white", "black", "draw", "pending"],
+        enum: ["white", "black", "draw", "pending", "started"],
         required: true,
       },
 

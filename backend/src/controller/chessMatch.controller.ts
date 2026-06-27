@@ -3,7 +3,7 @@ import { User } from "../models/user.model.ts";
 import { returnInternalServerError } from "../utils/Returns.ts";
 import type { Request, Response } from "express";
 
-export type result = "white" | "black" | "draw" | "pending";
+export type result = "white" | "black" | "draw" | "pending" | "started";
 export type reason = "abandoned" | "resign" | "checkmate";
 
 export const startGame = async (
@@ -30,6 +30,7 @@ export const startGame = async (
     const chessMatch = await ChessMatch.create({
       white: whiteUser?._id,
       black: blackUser?._id,
+      result: "started",
       roomId: roomId,
     });
 
@@ -45,6 +46,7 @@ export const startGame = async (
 // white player will start the game and call this api
 export const startGameApi = async (req: Request, res: Response) => {
   try {
+    console.log("SAVE GAME API")
     const { white, black, roomId } = req.body;
     const bool = await startGame(white, black, roomId);
     if (!bool) {
@@ -90,6 +92,7 @@ export const saveFinishedGame = async (
 
 export const saveGame = async (req: Request, res: Response) => {
   try {
+    console.log("SAVE GAME FUNCTION")
     const roomId = req.body.roomId;
     const fen = req.body.fen;
     const userId = req.userId;
@@ -123,12 +126,15 @@ export const saveGame = async (req: Request, res: Response) => {
   }
 };
 
-export const getAllSavedGames = async (req: any, res: any) => {
+export const getAllSavedGames = async (
+  req: Request,
+  res: Response
+) => {
   try {
     const savedGames = await ChessMatch.find({
       result: "pending",
     })
-      .select("roomId finalFen white black")
+      .select("roomId finalFen white black createdAt")
       .populate({
         path: "white",
         select: "username",
@@ -137,13 +143,48 @@ export const getAllSavedGames = async (req: any, res: any) => {
         path: "black",
         select: "username",
       });
-
+      
+      
+      const games = savedGames.map((game) => ({
+        roomId: game.roomId,
+        finalFen: game.finalFen,
+        white: (game.white as any).username,
+        black: (game.black as any).username,
+        createdAt: game.createdAt,
+      }));
+      
+      console.log("GAMES - ", savedGames)
     return res.status(200).json({
       success: true,
-      message: "Fetched all saved Games successfully",
-      games: savedGames,
+      message: "Fetched all saved games successfully",
+      games,
     });
   } catch (error) {
     return returnInternalServerError(res, error);
   }
 };
+
+// export const getAllSavedGames = async (req: any, res: any) => {
+//   try {
+//     const savedGames = await ChessMatch.find({
+//       result: "pending",
+//     })
+//       .select("roomId finalFen white black")
+//       .populate({
+//         path: "white",
+//         select: "username",
+//       })
+//       .populate({
+//         path: "black",
+//         select: "username",
+//       });
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Fetched all saved Games successfully",
+//       games: savedGames,
+//     });
+//   } catch (error) {
+//     return returnInternalServerError(res, error);
+//   }
+// };

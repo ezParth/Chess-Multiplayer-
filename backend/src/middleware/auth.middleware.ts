@@ -11,6 +11,8 @@ import type {
     userId?: string;
   }
   
+  const JWT_SECRET = "helloworld"
+
   export const protect = (
     req: AuthRequest,
     res: Response,
@@ -18,6 +20,8 @@ import type {
   ): void => {
     const token =
       req.cookies?.token;
+
+      // console.log("Cookies:", req.cookies, "\nCookies End");
   
     if (!token) {
       res.status(401).json({
@@ -29,15 +33,19 @@ import type {
     try {
       const decoded = jwt.verify(
         token,
-        process.env.JWT_SECRET as string
+        JWT_SECRET
+        // process.env.JWT_SECRET as string
       ) as {
         userId: string;
       };
+
+      // console.log("DECODED: ",decoded);
   
       req.userId = decoded.userId;
   
       next();
-    } catch {
+    } catch(error) {
+      console.log("ERROR: ", error)
       res.status(401).json({
         message: "Invalid token",
       });

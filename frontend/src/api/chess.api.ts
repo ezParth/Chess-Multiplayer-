@@ -1,25 +1,65 @@
 import axios from "axios";
 
-export const startGame = (data: {
-    white: string;
-    black: string;
-    roomId: string;
-}) =>
-    axios.post("/game/start", data);
+const gameApi = axios.create({
+  baseURL: "http://localhost:3000/api/game",
+  withCredentials: true,
+});
 
-export const saveGame = (data: {
-    roomId: string;
-    fen: string;
-}) =>
-    axios.post("/game/save", data);
+export interface StartGamePayload {
+  white: string;
+  black: string;
+  roomId: string;
+}
 
-export const getSavedGames = () =>
-    axios.get("/game/saved");
+export interface SaveGamePayload {
+  roomId: string;
+  fen: string;
+}
 
-export const finishGame = (data: {
-    roomId: string;
-    result: "white" | "black" | "draw";
-    reason: "checkmate" | "abandoned" | "resign";
-    finalFen: string;
-}) =>
-    axios.post("/game/finish", data);
+export interface FinishGamePayload {
+  roomId: string;
+  result: "white" | "black" | "draw";
+  reason: "checkmate" | "abandoned" | "resign";
+  finalFen: string;
+}
+
+export const startGame = async (
+  data: StartGamePayload
+) => {
+  const response = await gameApi.post(
+    "/start",
+    data
+  );
+
+  return response.data;
+};
+
+export const saveGame = async (
+  data: SaveGamePayload
+) => {
+  const response = await gameApi.post(
+    "/save",
+    data
+  );
+
+  return response.data;
+};
+
+export const finishGame = async (
+  data: FinishGamePayload
+) => {
+  const response = await gameApi.post(
+    "/finish",
+    data
+  );
+
+  return response.data;
+};
+
+export const getSavedGames =
+  async () => {
+    const response =
+      await gameApi.get("/saved");
+
+    return response.data;
+  };

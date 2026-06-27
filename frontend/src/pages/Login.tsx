@@ -28,6 +28,8 @@ export default function Login() {
       const data = await login(formData);
 
       console.log(data);
+      localStorage.setItem("username", data.user.username)
+      localStorage.setItem("token", data.token)
 
       navigate("/dashboard");
     } catch (error) {

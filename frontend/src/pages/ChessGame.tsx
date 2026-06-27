@@ -16,6 +16,8 @@ export default function ChessGame() {
     flipBoard,
     isWaiting,
     gameEnd,
+    SaveGameForLater,
+    goHome
   } = useMultiplayerChess();
 
   const pieceIconsBlack: Record<string, string> = {
@@ -110,10 +112,24 @@ export default function ChessGame() {
             </button>
 
             <button
+              onClick={goHome}
+              className="w-full bg-blue-600 py-2 rounded hover:bg-blue-700 mb-4"
+            >
+              Home
+            </button>
+
+            <button
               onClick={flipBoard}
               className="w-full bg-blue-600 py-2 rounded hover:bg-blue-700 mb-4"
             >
               Flip Board
+            </button>
+
+            <button
+              onClick={SaveGameForLater}
+              className="w-full bg-blue-600 py-2 rounded hover:bg-blue-700 mb-4"
+            >
+              Save Game For Later
             </button>
 
             {isWaiting == false && (
@@ -124,7 +140,6 @@ export default function ChessGame() {
                 Resign/Leave Game
               </button>
             )}
-
             {/* Captured Pieces */}
             <div className="mb-4">
               <h3 className="font-bold mb-2">White Lost</h3>

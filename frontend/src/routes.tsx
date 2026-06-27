@@ -8,6 +8,8 @@ import {
   import Signup from "./pages/Signup";
   import NotFound from "./pages/NotFound";
   import ChessGame from "./pages/ChessGame";
+import ProtectedRoute from "./pages/ProtectedRoutes";
+import SavedGames from "./pages/savedGames";
   
   export const router = createBrowserRouter([
     {
@@ -27,12 +29,26 @@ import {
           element: <Signup />,
         },
         {
-          path: "*",
-          element: <NotFound />,
+          element: <ProtectedRoute />,
+          children: [
+            {
+              path: "chess/:roomId?",
+              element: <ChessGame />,
+            },
+          ],
         },
         {
-          path: "chess/:roomId?",
-          element: <ChessGame />,
+          element: <ProtectedRoute />,
+          children: [
+            {
+              path: "/savedGames",
+              element: <SavedGames />
+            }
+          ]
+        },
+        {
+          path: "*",
+          element: <NotFound />,
         },
       ],
     },
