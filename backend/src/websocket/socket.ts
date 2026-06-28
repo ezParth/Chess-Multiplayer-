@@ -17,11 +17,12 @@ interface Room {
     white: Player;
     black: Player;
   };
-  saving: boolean
+  saving: boolean;
 }
 
 const rooms = new Map<string, Room>();
 let waitingPlayer: Player | null = null;
+const onlineUsers = new Map<string, string>();
 
 export const setupSocket = (server: any) => {
   const io = new Server(server, {
@@ -33,6 +34,22 @@ export const setupSocket = (server: any) => {
 
   io.on("connection", (socket) => {
     console.log("Connected:", socket.id);
+
+    socket.on("register", (userId) => {
+      socket.userId = userId;
+      for (const [id, socketId] of onlineUsers) {
+        if (userId == id) {
+          return;
+        }
+      }
+      onlineUsers.set(userId, socket.id);
+
+      io.emit("online-users", [...onlineUsers.keys()]);
+    });
+
+    socket.on("get-online-users", () => {
+      socket.emit("online-users", [...onlineUsers.keys()]);
+    });
 
     // For Random Matches
     socket.on("set-username", async (username: string) => {
@@ -54,7 +71,7 @@ export const setupSocket = (server: any) => {
             white: waitingPlayer,
             black: player,
           },
-          saving: false
+          saving: false,
         };
 
         rooms.set(roomId, room);
@@ -183,11 +200,11 @@ export const setupSocket = (server: any) => {
 
     socket.on("save-game-for-later", (roomId) => {
       console.log("GAME SAVE WAS CALLED!");
-      const fen = rooms.get(roomId)?.game.fen()
+      const fen = rooms.get(roomId)?.game.fen();
       const room = rooms.get(roomId);
 
       if (!room) return;
-    
+
       room.saving = true;
       socket.to(roomId).emit("save-game-for-later-accepted", fen);
     });
@@ -198,14 +215,18 @@ export const setupSocket = (server: any) => {
 
     // Disconnect handler
     socket.on("disconnect", async () => {
+      if (socket.userId) {
+        onlineUsers.delete(socket.userId);
+        io.emit("online-users", [...onlineUsers.keys()]);
+      }
       for (const [roomId, room] of rooms.entries()) {
         if (
           room.players.white.id === socket.id ||
           room.players.black.id === socket.id
         ) {
           try {
-            if(room.saving == true) {
-              return
+            if (room.saving == true) {
+              return;
             }
             const isWhiteLeaving = socket.id === room.players.white.id;
             const winner: result = isWhiteLeaving ? "black" : "white";

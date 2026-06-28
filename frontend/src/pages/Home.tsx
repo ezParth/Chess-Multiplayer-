@@ -1,11 +1,30 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useMultiplayerChess } from "../hooks/useMultiPlayerChess";
+import { io, type Socket } from "socket.io-client";
 
 export default function Home() {
   // const [username, setUsername] = useState<string | null>(null)
   const [username] = useState<string | null>(() =>
     localStorage.getItem("username")
   );
+
+  const socketRef = useRef<Socket | null>(null)
+
+  useEffect(() => {
+    const socket = io("http://localhost:3000");
+    socketRef.current = socket;
+
+    const username = localStorage.getItem("username")
+    if(!username) {
+      return
+    }
+
+    socket.on("connect", () => {
+      socket.emit('register', username)
+    })
+  }, [])
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       {/* Navbar */}

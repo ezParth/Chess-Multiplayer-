@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // hooks/useMultiplayerChess.ts
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Chess } from "chess.js";
@@ -22,12 +23,14 @@ interface UseChessReturn {
   flipBoard: () => void;
   gameEnd: () => void;
   // checkMate: boolean
-  winner: string
+  winner: string;
   // setCheckMate: (arg: boolean) => void;
   setWinner: (arg: string) => void;
-  reason: string
+  reason: string;
   SaveGameForLater: () => void;
-goHome: () => void; 
+  goHome: () => void;
+  getOnlineUsers: () => void;
+  onlineUsers: any;
 }
 
 export const useMultiplayerChess = (): UseChessReturn => {
@@ -41,13 +44,13 @@ export const useMultiplayerChess = (): UseChessReturn => {
   const [opponentUsername, setOpponentUsername] = useState<string>("");
   const [myUsername, setMyUsername] = useState<string>("");
   // const [checkMate, setCheckMate] = useState<boolean>(false)
-  const [winner, setWinner] = useState("")
-  const [reason, setReason] = useState("")
+  const [winner, setWinner] = useState("");
+  const [reason, setReason] = useState("");
+  const [onlineUsers, setOnlineUsers] = useState();
 
-  const { roomId: paramRoomId } = useParams();   // Better naming
+  const { roomId: paramRoomId } = useParams(); // Better naming
 
   const roomIdRef = useRef<string | null>(null);
-
 
   useEffect(() => {
     roomIdRef.current = roomId || paramRoomId || null;
@@ -57,8 +60,6 @@ export const useMultiplayerChess = (): UseChessReturn => {
   const gameRef = useRef(game);
 
   const nav = useNavigate();
-
-
 
   // Keep gameRef updated
   useEffect(() => {
@@ -79,6 +80,7 @@ export const useMultiplayerChess = (): UseChessReturn => {
 
     socket.on("connect", () => {
       setIsConnected(true);
+
       const username = localStorage.getItem("username");
       if (!username) {
         alert("Please login first");
@@ -88,6 +90,10 @@ export const useMultiplayerChess = (): UseChessReturn => {
       }
       setMyUsername(username);
       socket.emit("set-username", username);
+    });
+
+    socket.on("online-users", (onlineUsersMap) => {
+      setOnlineUsers(onlineUsersMap);
     });
 
     socket.on("waiting", () => {
@@ -120,51 +126,53 @@ export const useMultiplayerChess = (): UseChessReturn => {
     socket.on("opponent-disconnected", () => {
       alert("Opponent disconnected");
       resetGame();
-      nav("/chess")
+      nav("/chess");
     });
 
     socket.on("game-over", ({ result, reason, finalFen, winner }) => {
       setGame(new Chess(finalFen)); // Final position
-    
+
       if (result === "draw") {
         alert(`Game Over! It's a Draw (${reason})`);
       } else {
-        const youWin = (playerColor === winner);
-        alert(`Game Over! ${youWin ? "You Won 🎉" : "You Lost 😢"} by ${reason}`);
+        const youWin = playerColor === winner;
+        alert(
+          `Game Over! ${youWin ? "You Won 🎉" : "You Lost 😢"} by ${reason}`
+        );
       }
 
-      setWinner(result)
-      setReason(reason)
-      resetGame()
-      nav("/chess")
-    
+      setWinner(result);
+      setReason(reason);
+      resetGame();
+      nav("/chess");
+
       // Optional: reset after some time or let user click "New Game"
     });
 
     socket.on("save-game-for-later-accepted", async (fen) => {
       const currentRoomId = roomId || roomIdRef.current || paramRoomId;
-    
+
       console.log("Current Room ID in save listener:", currentRoomId); // ← For debugging
-    
+
       if (!currentRoomId) {
         console.error("Cannot save game: roomId is missing");
         alert("Cannot save game - Room ID not found. Please try again.");
         return;
       }
-    
+
       try {
         console.log("Saving game with roomId:", currentRoomId);
-        
+
         const response = await saveGame({
           roomId: currentRoomId,
           fen: fen ?? game.fen(),
         });
-    
+
         if (response?.success) {
           socket.emit("game-saved-successfully");
           alert("Game Saved Successfully!");
-          nav("/chess")
-          resetGame()
+          nav("/chess");
+          resetGame();
         } else {
           alert("Failed to save game");
         }
@@ -175,10 +183,10 @@ export const useMultiplayerChess = (): UseChessReturn => {
     });
 
     socket.on("game-saved", () => {
-      alert("GAME SAVED SUCCESSFULLY")
-      resetGame()
-      nav("/chess")
-    })
+      alert("GAME SAVED SUCCESSFULLY");
+      resetGame();
+      nav("/chess");
+    });
 
     return () => {
       socket.removeAllListeners();
@@ -187,7 +195,8 @@ export const useMultiplayerChess = (): UseChessReturn => {
 
   const onDrop = useCallback(
     ({ sourceSquare, targetSquare }: PieceDropHandlerArgs) => {
-      if (!roomId || !socketRef.current?.connected || !targetSquare) return false;
+      if (!roomId || !socketRef.current?.connected || !targetSquare)
+        return false;
 
       const gameCopy = new Chess(game.fen());
       const move = gameCopy.move({
@@ -216,8 +225,6 @@ export const useMultiplayerChess = (): UseChessReturn => {
     [roomId, playerColor, game]
   );
 
-
-
   const resetGame = useCallback(() => {
     const newGame = new Chess();
     setGame(newGame);
@@ -245,39 +252,45 @@ export const useMultiplayerChess = (): UseChessReturn => {
     resetGame();
   }, [roomId, resetGame]);
 
-const SaveGameForLater = async () => {
-  const currentRoomId = roomId || roomIds;
+  const SaveGameForLater = async () => {
+    const currentRoomId = roomId || roomIds;
 
-  if (!currentRoomId) {
-    alert("Cannot save: Room ID not found");
-    return;
-  }
+    if (!currentRoomId) {
+      alert("Cannot save: Room ID not found");
+      return;
+    }
 
-  if (!socketRef.current?.connected) {
-    alert("Not connected to server");
-    return;
-  }
+    if (!socketRef.current?.connected) {
+      alert("Not connected to server");
+      return;
+    }
 
-  console.log("Requesting to save game:", currentRoomId);
-  // resetGame()
-  socketRef.current.emit("save-game-for-later", currentRoomId);
-};
+    console.log("Requesting to save game:", currentRoomId);
+    // resetGame()
+    socketRef.current.emit("save-game-for-later", currentRoomId);
+  };
 
   const flipBoard = useCallback(() => {
     setPlayerColor((prev) => (prev === "white" ? "black" : "white"));
   }, []);
 
   const goHome = () => {
-    resetGame()
-    nav("/")
-  }
+    resetGame();
+    nav("/");
+  };
+
+  const getOnlineUsers = () => {
+    socketRef.current?.emit("get-online-users");
+  };
+
+
 
   useEffect(() => {
     return () => {
       if (socketRef.current) {
         socketRef.current.removeAllListeners();
         socketRef.current.disconnect();
-        nav("/chess")
+        nav("/chess");
       }
     };
   }, []);
@@ -303,6 +316,8 @@ const SaveGameForLater = async () => {
     setWinner,
     reason,
     SaveGameForLater,
-    goHome
+    goHome,
+    getOnlineUsers,
+    onlineUsers,
   };
 };
