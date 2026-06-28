@@ -37,11 +37,13 @@ export const setupSocket = (server: any) => {
 
     socket.on("register", (userId) => {
       socket.userId = userId;
-      for (const [id, socketId] of onlineUsers) {
-        if (userId == id) {
-          return;
-        }
-      }
+      // for (const [id, socketId] of onlineUsers) {
+      //   if (userId == id) {
+      //     return;
+      //   }
+      // }
+
+      // Here I am over writing the socket id
       onlineUsers.set(userId, socket.id);
 
       io.emit("online-users", [...onlineUsers.keys()]);

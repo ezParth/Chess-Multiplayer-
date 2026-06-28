@@ -11,12 +11,12 @@ const AllPlayers = () => {
   const [players, setAllPlayers] = useState<IPlayers[]>([]);
   const [loading, setLoading] = useState(true);
   const [onlinePlayers, setOnlinePlayers] = useState<string[]>([]);
-  const [username, setUsername] = useState<string | null>(null)
+  const [username] = useState(() => localStorage.getItem("username"))
 
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-    setUsername(localStorage.getItem("username"))
+    // setUsername(localStorage.getItem("username"))
     const getAllPlayersFunc = async () => {
       try {
         const resp = await getAllPlayers();
@@ -37,15 +37,19 @@ const AllPlayers = () => {
     socketRef.current = socket;
 
     socket.on("connect", () => {
+      console.log("Connected Again")
       console.log("Connected:", socket.id);
-      socket.emit("register")
+
+      if(username) {
+        socket.emit("register", username)
+      } else {
+        console.error("CANNOT FETCH USERNAME")
+      }
       socket.emit("get-online-users");
     });
 
     socket.on("online-users", (users: string[]) => {
       setOnlinePlayers(users);
-      console.log("ONLINE PLAYERS - ", users)
-      console.log("CALLED")
     });
 
     return () => {
