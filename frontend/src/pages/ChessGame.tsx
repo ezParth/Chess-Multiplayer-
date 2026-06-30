@@ -98,7 +98,7 @@ export default function ChessGame() {
             <h2 className="text-xl font-bold mb-4">Controls</h2>
 
             <button
-              onClick={connectSocket}
+              onClick={() => connectSocket("")}
               className="w-full bg-yellow-600 py-2 rounded hover:bg-yellow-700 mb-4"
             >
               {game.isCheckmate() ? "Start A New Game" : "Start / Join Game"}

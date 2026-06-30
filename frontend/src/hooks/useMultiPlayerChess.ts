@@ -90,7 +90,7 @@ export const useMultiplayerChess = (): UseChessReturn => {
         return;
       }
       setMyUsername(username);
-      if(currentOpponentName) {
+      if(currentOpponentName != "") {
         socket.emit("play-a-friend", currentOpponentName, username)
         setPlayingAFriend(true)
       } else {
@@ -152,9 +152,9 @@ export const useMultiplayerChess = (): UseChessReturn => {
     });
 
     socket.on("opponent-disconnected", () => {
-      alert("Opponent disconnected");
+      alert("chessOpponent disconnected");
       resetGame();
-      nav("/chess");
+      nav("/");
     });
 
     socket.on("game-over", ({ result, reason, finalFen, winner }) => {
