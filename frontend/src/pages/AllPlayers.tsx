@@ -17,7 +17,7 @@ const AllPlayers = () => {
   const [challangedUsers, setChallangedUsers] = useState<string[]>([]);
 
   const socketRef = useRef<Socket | null>(null);
-  const nav = useNavigate()
+  const nav = useNavigate();
 
   useEffect(() => {
     // setUsername(localStorage.getItem("username"))
@@ -62,10 +62,10 @@ const AllPlayers = () => {
       alert(`${from} challenged you!`);
     });
 
-    socket.on("challenge-accepted", ( { from } ) => {
-      alert(`${from} accepted the challange`)
-      nav(`/friend/${from}`)
-    })
+    socket.on("challenge-accepted", ({ from }) => {
+      alert(`${from} accepted the challange`);
+      nav(`/friend/${from}`);
+    });
 
     return () => {
       socket.off("connect");
@@ -125,7 +125,9 @@ const AllPlayers = () => {
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center text-xl font-bold">
-                      {player.username.charAt(0).toUpperCase()}
+                      {username === player.username
+                        ? `${player.username.charAt(0).toUpperCase()}`
+                        : player.username.charAt(0).toUpperCase()}
                     </div>
 
                     <div className="flex-1">
@@ -150,12 +152,16 @@ const AllPlayers = () => {
                         // Accept the incoming challenge
                         socketRef.current?.emit("accept-challenge", {
                           from: player.username,
-                          myName: username ?? localStorage.getItem("username")
+                          myName: username ?? localStorage.getItem("username"),
                         });
 
-                        nav(`/friend/${player.username}`)
+                        nav(`/friend/${player.username}`);
                       } else {
                         // Send a new challenge
+                        if (username == player.username) {
+                          alert("Cannot Challange Yourself bro!!!");
+                          return;
+                        }
                         challengeUser(player.username);
                       }
                     }}

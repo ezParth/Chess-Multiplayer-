@@ -51,12 +51,13 @@ export const setupSocket = (server: any) => {
     });
 
     socket.on("play-a-friend", async (friendName, myName) => {
-      console.log("PLAY A FRINED IS CALLED")
+      // console.log("PLAY A FRINED IS CALLED")
       // console.log("ROOMS - ", rooms)
       for(const room of rooms) {
-        console.log("HITTING - ", room, " player - ", room[1].players.white)
-        console.log(room[1].players.white?.username, "FriendName - " ,friendName, " Myname- ", myName)
+        // console.log("HITTING - ", room, " player - ", room[1].players.white)
+        console.log(room[1].players.white?.username, " == " ,friendName, " Myname- ", myName)
         if(room[1].players.white?.username == friendName && !room[1].players.black) {
+          console.log("***************")
           console.log("Second User Added - ", myName)
           const blackPlayer: Player = {
             id: socket.id,
