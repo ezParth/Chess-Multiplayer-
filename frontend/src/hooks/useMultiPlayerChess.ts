@@ -18,7 +18,7 @@ interface UseChessReturn {
   opponentUsername: string;
   myUsername: string;
   onDrop: (args: PieceDropHandlerArgs) => boolean;
-  connectSocket: () => void;
+  connectSocket: (friend?: string) => void;
   resetGame: () => void;
   flipBoard: () => void;
   gameEnd: () => void;
@@ -47,6 +47,7 @@ export const useMultiplayerChess = (): UseChessReturn => {
   const [winner, setWinner] = useState("");
   const [reason, setReason] = useState("");
   const [onlineUsers, setOnlineUsers] = useState();
+  const [playingAFriend, setPlayingAFriend] = useState(false);
 
   const { roomId: paramRoomId } = useParams(); // Better naming
 
@@ -72,7 +73,7 @@ export const useMultiplayerChess = (): UseChessReturn => {
     // This is a simple placeholder
   }, []);
 
-  const connectSocket = useCallback(() => {
+  const connectSocket = useCallback((currentOpponentName?: string) => {
     if (socketRef.current?.connected) return;
 
     const socket = io("http://localhost:3000");
@@ -89,7 +90,12 @@ export const useMultiplayerChess = (): UseChessReturn => {
         return;
       }
       setMyUsername(username);
-      socket.emit("set-username", username);
+      if(currentOpponentName) {
+        socket.emit("play-a-friend", currentOpponentName, username)
+        setPlayingAFriend(true)
+      } else {
+        socket.emit("set-username", username);
+      }
     });
 
     socket.on("online-users", (onlineUsersMap) => {
@@ -100,7 +106,13 @@ export const useMultiplayerChess = (): UseChessReturn => {
       setIsWaiting(true);
     });
 
+    socket.on("waiting-for-friend", () => {
+      setIsWaiting(true);
+      // setPlayingAFriend()
+    });
+
     socket.on("game-start", ({ roomId: rId, white, black }) => {
+      // console.log
       setRoomId(rId);
       localStorage.setItem("roomId", rId);
       setIsWaiting(false);
@@ -110,6 +122,22 @@ export const useMultiplayerChess = (): UseChessReturn => {
       setOpponentUsername(isWhitePlayer ? black.username : white.username);
 
       nav(`/chess/${rId}`);
+    });
+
+    socket.on("friend-game-start", ({ roomId: rId, white, black }) => {
+      setRoomId(rId);
+      localStorage.setItem("roomId", rId);
+      setIsWaiting(false);
+
+      const isWhitePlayer = socket.id === white.id;
+      setPlayerColor(isWhitePlayer ? "white" : "black");
+      setOpponentUsername(isWhitePlayer ? black.username : white.username);
+
+      // if(playingAFriend) {
+      //   // nav(`/chess/${rId}`)
+      // } else {
+      //   nav(`/chess/${rId}`);
+      // }
     });
 
     socket.on("opponent-move", (fen: string) => {
@@ -235,6 +263,7 @@ export const useMultiplayerChess = (): UseChessReturn => {
     setIsWaiting(null);
     setOpponentUsername("");
     setIsConnected(false);
+    setPlayingAFriend(false)
 
     localStorage.removeItem("roomId");
 

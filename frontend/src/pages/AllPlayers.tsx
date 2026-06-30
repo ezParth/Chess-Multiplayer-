@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 import { getAllPlayers } from "../api/chess.api";
+import { useNavigate } from "react-router-dom";
 
 interface IPlayers {
   username: string;
@@ -11,9 +12,12 @@ const AllPlayers = () => {
   const [players, setAllPlayers] = useState<IPlayers[]>([]);
   const [loading, setLoading] = useState(true);
   const [onlinePlayers, setOnlinePlayers] = useState<string[]>([]);
-  const [username] = useState(() => localStorage.getItem("username"))
+  const [username] = useState(() => localStorage.getItem("username"));
+  const [challengingUsers, setChallengingUsers] = useState<string[]>([]);
+  const [challangedUsers, setChallangedUsers] = useState<string[]>([]);
 
   const socketRef = useRef<Socket | null>(null);
+  const nav = useNavigate()
 
   useEffect(() => {
     // setUsername(localStorage.getItem("username"))
@@ -37,13 +41,13 @@ const AllPlayers = () => {
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      console.log("Connected Again")
+      console.log("Connected Again");
       console.log("Connected:", socket.id);
 
-      if(username) {
-        socket.emit("register", username)
+      if (username) {
+        socket.emit("register", username);
       } else {
-        console.error("CANNOT FETCH USERNAME")
+        console.error("CANNOT FETCH USERNAME");
       }
       socket.emit("get-online-users");
     });
@@ -52,6 +56,17 @@ const AllPlayers = () => {
       setOnlinePlayers(users);
     });
 
+    socket.on("challenging", ({ from }) => {
+      setChallengingUsers((prev) => [...prev, from]);
+
+      alert(`${from} challenged you!`);
+    });
+
+    socket.on("challenge-accepted", ( { from } ) => {
+      alert(`${from} accepted the challange`)
+      nav(`/friend/${from}`)
+    })
+
     return () => {
       socket.off("connect");
       socket.off("online-users");
@@ -59,12 +74,15 @@ const AllPlayers = () => {
     };
   }, []);
 
+  const challengeUser = (username: string) => {
+    setChallangedUsers((prev) => [...prev, username]);
+    socketRef.current?.emit("challenge", { to: username });
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <div className="max-w-6xl mx-auto px-8 py-10">
-        <h1 className="text-4xl font-bold mb-2">
-          Players
-        </h1>
+        <h1 className="text-4xl font-bold mb-2">Players</h1>
 
         <p className="text-slate-400 mb-8">
           Challenge anyone and start a new chess match.
@@ -78,14 +96,16 @@ const AllPlayers = () => {
           </div>
         ) : players.length === 0 ? (
           <div className="flex justify-center items-center h-64">
-            <p className="text-slate-500 text-lg">
-              No players found.
-            </p>
+            <p className="text-slate-500 text-lg">No players found.</p>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {players.map((player) => {
-              const isOnline = onlinePlayers.includes(player.username) || player.username == username;
+              const isOnline =
+                onlinePlayers.includes(player.username) ||
+                player.username == username;
+              const isChallanging = challengingUsers.includes(player.username);
+              const isChallanged = challangedUsers.includes(player.username);
 
               return (
                 <div
@@ -115,9 +135,7 @@ const AllPlayers = () => {
 
                       <p
                         className={`text-sm ${
-                          isOnline
-                            ? "text-green-400"
-                            : "text-slate-500"
+                          isOnline ? "text-green-400" : "text-slate-500"
                         }`}
                       >
                         {isOnline ? "🟢 Online" : "⚫ Offline"}
@@ -126,14 +144,41 @@ const AllPlayers = () => {
                   </div>
 
                   <button
-                    disabled={!isOnline}
-                    className={`mt-6 w-full rounded-lg py-2.5 font-semibold transition ${
-                      isOnline
+                    disabled={!isOnline && !isChallanging}
+                    onClick={() => {
+                      if (isChallanging) {
+                        // Accept the incoming challenge
+                        socketRef.current?.emit("accept-challenge", {
+                          from: player.username,
+                          myName: username ?? localStorage.getItem("username")
+                        });
+
+                        nav(`/friend/${player.username}`)
+                      } else {
+                        // Send a new challenge
+                        challengeUser(player.username);
+                      }
+                    }}
+                    className={`mt-6 w-full rounded-lg py-2.5 font-semibold transition flex items-center justify-center gap-2 cursor-pointer ${
+                      isChallanged
+                        ? "bg-yellow-600 cursor-wait"
+                        : isChallanging
+                        ? "bg-red-700 hover:bg-red-900"
+                        : isOnline
                         ? "bg-blue-600 hover:bg-blue-700"
                         : "bg-slate-700 cursor-not-allowed"
                     }`}
                   >
-                    Challenge
+                    {isChallanging ? (
+                      <>Accept Challenge</>
+                    ) : isChallanged ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Waiting...
+                      </>
+                    ) : (
+                      "Challenge"
+                    )}
                   </button>
                 </div>
               );

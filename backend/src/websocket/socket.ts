@@ -14,10 +14,11 @@ interface Player {
 interface Room {
   game: Chess;
   players: {
-    white: Player;
-    black: Player;
+    white: Player | null;
+    black: Player | null;
   };
   saving: boolean;
+  roomId: string
 }
 
 const rooms = new Map<string, Room>();
@@ -49,9 +50,119 @@ export const setupSocket = (server: any) => {
       io.emit("online-users", [...onlineUsers.keys()]);
     });
 
+    socket.on("play-a-friend", async (friendName, myName) => {
+      console.log("PLAY A FRINED IS CALLED")
+      // console.log("ROOMS - ", rooms)
+      for(const room of rooms) {
+        console.log("HITTING - ", room, " player - ", room[1].players.white)
+        console.log(room[1].players.white?.username, "FriendName - " ,friendName, " Myname- ", myName)
+        if(room[1].players.white?.username == friendName && !room[1].players.black) {
+          console.log("Second User Added - ", myName)
+          const blackPlayer: Player = {
+            id: socket.id,
+            username: myName
+          }
+
+          room[1].players.black = blackPlayer
+          const roomId = room[1].roomId
+          socket.join(roomId)
+          if(room[1].players.white?.id) {
+            // io.sockets.sockets.get(room[1].players.white?.id)?.join(roomId)
+            // rooms.set(roomId, room[1]);
+
+          const whitePlayer = room[1].players.white
+          const blackPlayer = room[1].players.black
+
+            try {
+              const gameStarted = await startGame(
+                whitePlayer.username,
+                blackPlayer.username,
+                roomId
+              );
+    
+              if (!gameStarted) {
+                console.error("Failed to start game in database");
+                socket.emit("game-error", "Failed to create game record");
+                rooms.delete(roomId);
+                return;
+              }
+    
+              io.to(roomId).emit("friend-game-start", {
+                roomId,
+                white: whitePlayer,
+                black: blackPlayer,
+              });
+              console.log("********* FRINED GAME STARTED *********")
+            } catch (error) {
+              console.error("Error starting game:", error);
+              socket.emit(
+                "game-error",
+                "Internal server error while starting game"
+              );
+              rooms.delete(roomId);
+            }
+          }else {
+            console.error("ERROR IN FINDING SOCKETID")
+            return
+          }
+        }
+        return
+      }
+
+      console.log("First User Added - ", myName)
+      const game = new Chess();
+
+      const whitePlayer: Player = {
+        id: socket.id,
+        username: myName
+      }
+
+      const roomId = `room-${Date.now()}`;
+      const room: Room = {
+        game,
+        players: {
+          white: whitePlayer,
+          black: null,
+        },
+        saving: false,
+        roomId: roomId
+      };
+
+      rooms.set(roomId, room)
+      socket.join(roomId);
+
+      socket.emit("waiting-for-friend")
+    })
+
     socket.on("get-online-users", () => {
       socket.emit("online-users", [...onlineUsers.keys()]);
     });
+
+    socket.on("challenge", ({ to }) => {
+
+      const targetSocket = onlineUsers.get(to);
+  
+      if (!targetSocket) {
+          socket.emit("challenge-failed");
+          return;
+      }
+  
+      io.to(targetSocket).emit("challenging", {
+          from: socket.userId,
+      });
+  
+  });
+
+  socket.on("accept-challenge", ({ from, myName }) => {
+    const socketId = onlineUsers.get(from)
+    console.log("FROM - ", from, " myName = ", myName)
+    if(socketId) {
+      io.to(socketId).emit("challenge-accepted", { from: myName })
+    } else {
+      console.log("the user is offline")
+      return
+    }
+  })
 
     // For Random Matches
     socket.on("set-username", async (username: string) => {
@@ -223,14 +334,14 @@ export const setupSocket = (server: any) => {
       }
       for (const [roomId, room] of rooms.entries()) {
         if (
-          room.players.white.id === socket.id ||
-          room.players.black.id === socket.id
+          room.players.white?.id === socket.id ||
+          room.players.black?.id === socket.id
         ) {
           try {
             if (room.saving == true) {
               return;
             }
-            const isWhiteLeaving = socket.id === room.players.white.id;
+            const isWhiteLeaving = socket.id === room.players.white?.id;
             const winner: result = isWhiteLeaving ? "black" : "white";
 
             const finalFen = room.game.fen();

@@ -9,6 +9,7 @@ import ChessGame from "./pages/ChessGame";
 import ProtectedRoute from "./pages/ProtectedRoutes";
 import SavedGames from "./pages/SavedGames";
 import AllPlayers from "./pages/AllPlayers";
+import PlayAFriend from "./pages/PlayAFriend";
 
 export const router = createBrowserRouter([
   {
@@ -51,6 +52,15 @@ export const router = createBrowserRouter([
           {
             path: "/friend",
             element: <AllPlayers />,
+          },
+        ],
+      },
+      {
+        element: <ProtectedRoute />,
+        children: [
+          {
+            path: "/friend/:friendName",
+            element: <PlayAFriend />,
           },
         ],
       },
