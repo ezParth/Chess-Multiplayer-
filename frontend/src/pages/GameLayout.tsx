@@ -3,10 +3,10 @@
 // add a timer here...
 import { Chessboard } from "react-chessboard";
 import { useMultiplayerChess } from "../hooks/useMultiPlayerChess";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
-export default function PlayAFriend() {
+export default function GameLayout() {
   const {
     game,
     playerColor,
@@ -19,10 +19,11 @@ export default function PlayAFriend() {
     isWaiting,
     gameEnd,
     SaveGameForLater,
-    goHome
+    goHome,
+    opponentUsername,
   } = useMultiplayerChess();
 
-  const { friendName } = useParams()
+  const { friendName } = useParams();
 
   const pieceIconsBlack: Record<string, string> = {
     p: "♟",
@@ -42,13 +43,40 @@ export default function PlayAFriend() {
     k: "♔",
   };
 
+  const [whiteTime, setWhiteTime] = useState(10 * 60);
+  const [blackTime, setBlackTime] = useState(10 * 60);
+
   useEffect(() => {
-    console.log("FRIEND NAME",friendName)
-    if(!friendName) {
-      // alert("No frined name")
+    if (isWaiting) return;
+
+    const interval = setInterval(() => {
+      if (game.turn() === "w") {
+        setWhiteTime((t) => Math.max(0, t - 1));
+      } else {
+        setBlackTime((t) => Math.max(0, t - 1));
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [game, isWaiting]);
+
+  useEffect(() => {
+    if (friendName) {
+      connectSocket(friendName);
     }
-    connectSocket(friendName)
-  }, [])
+  }, [friendName, connectSocket]);
+
+  const formatTime = (seconds: number) => {
+    if(!opponentUsername) {
+        return `10:00`
+    }
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+
+    return `${mins.toString().padStart(2, "0")}:${secs
+      .toString()
+      .padStart(2, "0")}`;
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-white p-8">
@@ -67,7 +95,7 @@ export default function PlayAFriend() {
           </div>
         </div>
       )}
-      <h1 className="text-3xl font-bold text-center mb-6">Chess Game</h1>
+      {/* <h1 className="text-3xl font-bold text-center mb-6">Chess Game</h1> */}
 
       <div className="flex justify-center gap-8">
         {/* Left Side - Game Info */}
@@ -88,47 +116,106 @@ export default function PlayAFriend() {
         </div>
 
         {/* Center Board */}
-        <div className="w-[640px] flex justify-center">
-          <Chessboard
-            options={{
-              position: game.fen(),
-              onPieceDrop: onDrop,
-              boardOrientation: playerColor,
-              boardStyle: {
-                borderRadius: "12px",
-                boxShadow: "0 0 25px rgba(0,0,0,0.5)",
-              },
-              lightSquareStyle: { backgroundColor: "#f0d9b5" },
-              darkSquareStyle: { backgroundColor: "#b58863" },
-            }}
-          />
+        <div className="w-[580px] flex justify-center">
+        <div className="flex flex-col gap-3">
+
+    {/* Opponent */}
+    <div className="bg-slate-900 rounded-xl px-4 py-3 flex items-center justify-between shadow">
+      <div className="flex items-center gap-3">
+        {/* <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center font-bold text-lg">
+          {(friendName ?? "Opponent").charAt(0).toUpperCase()}
+        </div> */}
+
+        <div>
+          <p className="font-semibold">
+            {friendName?? opponentUsername ?? "Opponent"}
+          </p>
+
+          <p className="text-xs text-slate-400">
+            {playerColor === "white" ? "Black" : "White"}
+          </p>
         </div>
+      </div>
+
+      <div className="text-2xl font-mono font-bold">
+        {playerColor === "white"
+          ? formatTime(blackTime)
+          : formatTime(whiteTime)}
+      </div>
+    </div>
+
+    {/* Chess Board */}
+    <Chessboard
+      options={{
+        position: game.fen(),
+        onPieceDrop: onDrop,
+        boardOrientation: playerColor,
+        boardStyle: {
+          borderRadius: "12px",
+          boxShadow: "0 0 25px rgba(0,0,0,0.5)",
+        },
+        lightSquareStyle: { backgroundColor: "#f0d9b5" },
+        darkSquareStyle: { backgroundColor: "#b58863" },
+      }}
+    />
+
+    {/* You */}
+    <div className="bg-slate-900 rounded-xl px-4 py-3 flex items-center justify-between shadow">
+      <div className="flex items-center gap-3">
+        {/* <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold text-lg">
+          {localStorage
+            .getItem("username")
+            ?.charAt(0)
+            .toUpperCase()}
+        </div> */}
+
+        <div>
+          <p className="font-semibold">
+            {localStorage.getItem("username")}
+          </p>
+
+          <p className="text-xs text-slate-400">
+            {playerColor === "white" ? "White" : "Black"}
+          </p>
+        </div>
+      </div>
+
+      <div className="text-2xl font-mono font-bold">
+        {playerColor === "white"
+          ? formatTime(whiteTime)
+          : formatTime(blackTime)}
+      </div>
+    </div>
+  </div>
+</div>
 
         {/* Right Side - Controls */}
         <div className="w-72">
           <div className="bg-slate-900 rounded-xl p-4">
             <h2 className="text-xl font-bold mb-4">Controls</h2>
 
-            {/* <button
-              onClick={connectSocket}
-              className="w-full bg-yellow-600 py-2 rounded hover:bg-yellow-700 mb-4"
-            >
-              {game.isCheckmate() ? "Start A New Game" : "Start / Join Game"}
-            </button> */}
+            {!friendName && !opponentUsername && (
+              <button
+                onClick={() => connectSocket("")}
+                className="w-full bg-yellow-600 py-2 rounded hover:bg-yellow-700 mb-4"
+              >
+                {game.isCheckmate() ? "Start A New Game" : "Start / Join Game"}
+              </button>
+            )}
 
-            <button
+            {!opponentUsername && (<button
               onClick={resetGame}
               className="w-full bg-blue-600 py-2 rounded hover:bg-blue-700 mb-4"
             >
               Reset Game
-            </button>
+            </button>)}
 
-            <button
+            {!opponentUsername && (<button
               onClick={goHome}
               className="w-full bg-blue-600 py-2 rounded hover:bg-blue-700 mb-4"
             >
               Home
-            </button>
+            </button>)}
 
             <button
               onClick={flipBoard}
@@ -137,12 +224,12 @@ export default function PlayAFriend() {
               Flip Board
             </button>
 
-            <button
+           {opponentUsername && ( <button
               onClick={SaveGameForLater}
               className="w-full bg-blue-600 py-2 rounded hover:bg-blue-700 mb-4"
             >
               Save Game For Later
-            </button>
+            </button>)}
 
             {isWaiting == false && (
               <button
