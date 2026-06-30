@@ -215,6 +215,8 @@ export default function GameLayout() {
             </div>
 
             {/* Chess Board */}
+            <div className="w-[580px] flex justify-center">
+
             <Chessboard
               options={{
                 position: game.fen(),
@@ -227,7 +229,8 @@ export default function GameLayout() {
                 lightSquareStyle: { backgroundColor: "#f0d9b5" },
                 darkSquareStyle: { backgroundColor: "#b58863" },
               }}
-            />
+              />
+              </div>
 
             {/* You */}
             <div className="bg-slate-900 rounded-xl px-4 py-3 flex items-center justify-between shadow">
