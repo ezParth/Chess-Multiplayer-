@@ -21,6 +21,12 @@ interface Room {
   roomId: string
 }
 
+interface IMessage {
+  message: string
+  username: string
+  roomId: string
+}
+
 const rooms = new Map<string, Room>();
 let waitingPlayer: Player | null = null;
 const onlineUsers = new Map<string, string>();
@@ -164,6 +170,12 @@ export const setupSocket = (server: any) => {
       return
     }
   })
+
+  //chat
+
+  socket.on("send-message", (data: IMessage) => {
+    socket.to(data.roomId).emit("receive-message", data);
+  });
 
     // For Random Matches
     socket.on("set-username", async (username: string) => {

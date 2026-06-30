@@ -31,6 +31,14 @@ interface UseChessReturn {
   goHome: () => void;
   getOnlineUsers: () => void;
   onlineUsers: any;
+  sendMessage: (message: string) => void
+  messages: IMessage[]
+}
+
+interface IMessage {
+  message: string
+  username: string
+  roomId: string
 }
 
 export const useMultiplayerChess = (): UseChessReturn => {
@@ -48,6 +56,7 @@ export const useMultiplayerChess = (): UseChessReturn => {
   const [reason, setReason] = useState("");
   const [onlineUsers, setOnlineUsers] = useState();
   const [playingAFriend, setPlayingAFriend] = useState(false);
+  const [messages, setMessages] = useState<IMessage []>([])
 
   const { roomId: paramRoomId } = useParams(); // Better naming
 
@@ -210,6 +219,10 @@ export const useMultiplayerChess = (): UseChessReturn => {
       }
     });
 
+    socket.on("receive-message", (data: IMessage) => {
+      setMessages(prev => [...prev, data])
+    })
+
     socket.on("game-saved", () => {
       alert("GAME SAVED SUCCESSFULLY");
       resetGame();
@@ -312,6 +325,19 @@ export const useMultiplayerChess = (): UseChessReturn => {
     socketRef.current?.emit("get-online-users");
   };
 
+  const sendMessage = (message: string) => {
+    if(!roomId) {
+      alert("No Room Id - Check send message")
+      return
+    }
+    const data: IMessage = {
+      message: message,
+      username: myUsername ?? localStorage.getItem("username"),
+      roomId: roomId
+    }
+    socketRef?.current?.emit("send-message", data)
+    setMessages(prev => [...prev, data])
+  }
 
 
   useEffect(() => {
@@ -348,5 +374,7 @@ export const useMultiplayerChess = (): UseChessReturn => {
     goHome,
     getOnlineUsers,
     onlineUsers,
+    sendMessage,
+    messages,
   };
 };
