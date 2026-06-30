@@ -185,6 +185,13 @@ export default function Home() {
               >
                 Saved Games
               </Link>
+
+              <Link
+                to="/liveGames"
+                className="border border-slate-700 hover:bg-slate-900 px-6 py-3 rounded-lg transition"
+              >
+                Live Games
+              </Link>
             </div>
           </div>
 

@@ -27,7 +27,15 @@ interface IMessage {
   roomId: string
 }
 
+interface ISpectateObject {
+  roomId: string;
+  white: string;
+  black: string;
+  fen: string;
+}
+
 const rooms = new Map<string, Room>();
+// const filledRooms = new Map<string, Room>();
 let waitingPlayer: Player | null = null;
 const onlineUsers = new Map<string, string>();
 
@@ -198,6 +206,7 @@ export const setupSocket = (server: any) => {
             black: player,
           },
           saving: false,
+          roomId: roomId
         };
 
         rooms.set(roomId, room);
@@ -248,7 +257,7 @@ export const setupSocket = (server: any) => {
 
         // Validate turn
         const isWhiteTurn = game.turn() === "w";
-        const isPlayerWhite = socket.id === players.white.id;
+        const isPlayerWhite = socket.id === players.white?.id;
 
         if (
           (isWhiteTurn && !isPlayerWhite) ||
@@ -297,9 +306,29 @@ export const setupSocket = (server: any) => {
           }
         } catch (e) {
           console.error("Invalid FEN received:", e);
+        } finally {
+          io.emit(`${roomId}`, fen)
         }
       }
     );
+
+    socket.on("get-all-games", () => {
+      const games: ISpectateObject[] = [];
+    
+      for (const [roomId, room] of rooms) {
+        if (room.players.white && room.players.black) {
+          games.push({
+            roomId,
+            white: room.players.white.username,
+            black: room.players.black.username,
+            fen: room.game.fen(),
+          });
+        }
+      }
+    
+      socket.emit("get-games", games);
+    });
+    
 
     // Resign handler
     socket.on("resign", async (roomId: string) => {

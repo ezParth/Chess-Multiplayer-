@@ -11,6 +11,8 @@ import SavedGames from "./pages/SavedGames";
 import AllPlayers from "./pages/AllPlayers";
 // import PlayAFriend from "./pages/PlayAFriend";
 import GameLayout from "./pages/GameLayout";
+import LiveGames from "./pages/LiveGames";
+import Spectate from "./pages/Spectate";
 
 export const router = createBrowserRouter([
   {
@@ -71,6 +73,24 @@ export const router = createBrowserRouter([
           {
             path: "/friend/:friendName",
             element: <GameLayout />,
+          },
+        ],
+      },
+      {
+        element: <ProtectedRoute />,
+        children: [
+          {
+            path: "/liveGames",
+            element: <LiveGames />,
+          },
+        ],
+      },
+      {
+        element: <ProtectedRoute />,
+        children: [
+          {
+            path: "/spectate/:roomId",
+            element: <Spectate />,
           },
         ],
       },
